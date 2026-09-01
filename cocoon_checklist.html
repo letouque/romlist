@@ -206,6 +206,63 @@
     border-top:1px solid var(--border);
   }
   .platform.expanded .platform-body{display:block;}
+  .platform-year{
+    font-size:11px;
+    color:var(--muted);
+    background:var(--panel2);
+    padding:2px 7px;
+    border-radius:5px;
+  }
+  .platform-works{
+    font-size:11px;
+    padding:2px 7px;
+    border-radius:5px;
+  }
+  .platform-works.oui{color:var(--accent);}
+  .platform-works.non{color:var(--danger);}
+  .platform-meta{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    padding:10px;
+    margin:10px 0;
+    background:var(--panel2);
+    border:1px solid var(--border);
+    border-radius:8px;
+  }
+  .meta-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .meta-row label{
+    display:flex;
+    flex-direction:column;
+    gap:3px;
+    font-size:11px;
+    color:var(--muted);
+    flex:1;
+    min-width:110px;
+  }
+  .meta-row input, .meta-row select{
+    background:var(--panel);
+    border:1px solid var(--border);
+    color:var(--text);
+    padding:6px 8px;
+    border-radius:6px;
+    font-size:12px;
+  }
+  .meta-notes{
+    background:var(--panel);
+    border:1px solid var(--border);
+    color:var(--text);
+    padding:7px 9px;
+    border-radius:6px;
+    font-size:12px;
+    resize:vertical;
+    min-height:44px;
+    font-family:inherit;
+  }
   .game-add{
     display:flex;
     gap:8px;
@@ -218,6 +275,14 @@
   .game-add button{
     padding:7px 12px;
   }
+  .sort-mode-select{
+    background:var(--panel);
+    border:1px solid var(--border);
+    color:var(--text);
+    padding:7px 8px;
+    border-radius:8px;
+    font-size:12px;
+  }
   .game-list{
     display:flex;
     flex-direction:column;
@@ -225,12 +290,17 @@
   }
   .game-item{
     display:flex;
-    align-items:center;
-    gap:9px;
+    flex-direction:column;
+    gap:4px;
     padding:6px 8px;
     border-radius:6px;
     background:var(--panel2);
     font-size:13px;
+  }
+  .game-item-row{
+    display:flex;
+    align-items:center;
+    gap:9px;
   }
   .game-item.done .game-name{
     text-decoration:line-through;
@@ -241,6 +311,42 @@
     cursor:pointer;
   }
   .game-name{flex:1;}
+  .alt-add-btn{
+    background:none;
+    border:1px solid var(--border);
+    color:var(--muted);
+    cursor:pointer;
+    font-size:11px;
+    padding:2px 7px;
+    border-radius:10px;
+    white-space:nowrap;
+  }
+  .alt-add-btn:hover{color:var(--accent);border-color:var(--accent);}
+  .genre-edit-btn, .desc-edit-btn{
+    background:none;
+    border:1px solid var(--border);
+    color:var(--muted);
+    cursor:pointer;
+    font-size:11px;
+    padding:2px 6px;
+    border-radius:6px;
+  }
+  .genre-edit-btn:hover, .desc-edit-btn:hover{color:var(--accent);border-color:var(--accent);}
+  .genre-tag{
+    font-size:10px;
+    color:var(--accent);
+    background:var(--accent-dim);
+    padding:2px 7px;
+    border-radius:8px;
+    white-space:nowrap;
+  }
+  .game-description{
+    font-size:11px;
+    color:var(--muted);
+    font-style:italic;
+    padding-left:27px;
+    padding-right:8px;
+  }
   .game-remove{
     background:none;
     border:none;
@@ -250,6 +356,29 @@
     padding:2px 6px;
   }
   .game-remove:hover{color:var(--danger);}
+  .alt-tags{
+    display:flex;
+    flex-wrap:wrap;
+    gap:5px;
+    padding-left:27px;
+  }
+  .alt-tags:empty{display:none;}
+  .alt-tag{
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    background:var(--panel);
+    border:1px solid var(--border);
+    color:var(--muted);
+    font-size:11px;
+    padding:2px 6px;
+    border-radius:8px;
+  }
+  .alt-remove{
+    cursor:pointer;
+    color:var(--muted);
+  }
+  .alt-remove:hover{color:var(--danger);}
   .empty-games{
     color:var(--muted);
     font-size:12px;
@@ -10936,7 +11065,6 @@ const CHANNELF_TITLES = [
   "Casino Poker",
   "Checkers",
   "Chess",
-  "Demo 1",
   "Desert Fox / Shooting Gallery II",
   "Drag Strip / Shooting Gallery III",
   "Galactic Space Wars",
@@ -10956,8 +11084,7 @@ const CHANNELF_TITLES = [
   "Tennis",
   "Tic-Tac-Toe / Shooting Gallery / Doodle / Quadradoodle",
   "Video Blackjack",
-  "Video Whiz-Ball",
-  "Video Whizball"
+  { name: "Video Whizball", alts: ["Video Whiz-Ball"] }
 ];
 
 const MEGADUCK_TITLES = [
@@ -12617,7 +12744,46 @@ const DEFAULT_GAMES = {
 function seededGames(folder){
   const list = DEFAULT_GAMES[folder];
   if(!list) return [];
-  return list.map(name => ({ name, done:false }));
+  return list.map(item => {
+    if(typeof item === "string") return { name: item, done:false, alts: [], description:"", genre:"" };
+    const alts = (item.alts || []).map(a => typeof a === "string" ? { name:a, region:"" } : { name:a.name, region:a.region||"" });
+    return { name: item.name, done:false, alts, description: item.description||"", genre: item.genre||"" };
+  });
+}
+
+const REGION_FLAGS = { EU:"🇪🇺", US:"🇺🇸", JP:"🇯🇵", World:"🌍" };
+const REGION_LABELS = { EU:"Europe", US:"USA", JP:"Japon", World:"World" };
+
+function normalizeGameName(s){
+  return (s || "")
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // strip accents
+    .replace(/\bthe\b/g, "")
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "");
+}
+
+function migrateGame(g){
+  // Ensures older saved entries (before alt-names/description/genre existed) get the fields.
+  if(!g.alts) g.alts = [];
+  // Old format: alts was an array of plain strings. New format: {name, region}.
+  g.alts = g.alts.map(a => typeof a === "string" ? { name:a, region:"" } : a);
+  if(typeof g.description !== "string") g.description = "";
+  if(typeof g.genre !== "string") g.genre = "";
+  return g;
+}
+
+function defaultMeta(){
+  return { year:"", works:"", manufacturer:"", support:"", condition:"", notes:"" };
+}
+
+function migrateMeta(p){
+  if(!p.meta) p.meta = defaultMeta();
+  else{
+    const d = defaultMeta();
+    for(const k in d){ if(typeof p.meta[k] === "undefined") p.meta[k] = d[k]; }
+  }
+  return p;
 }
 
 function loadState(){
@@ -12639,11 +12805,16 @@ function loadState(){
         // défaut) mais jamais pré-remplie : on ajoute les jeux par défaut
         // manquants sans toucher à ceux déjà cochés/ajoutés par l'utilisateur.
         const existingNames = new Set(state[folder].games.map(g => g.name));
-        DEFAULT_GAMES[folder].forEach(name => {
-          if(!existingNames.has(name)) state[folder].games.push({ name, done:false });
+        DEFAULT_GAMES[folder].forEach(item => {
+          const name = typeof item === "string" ? item : item.name;
+          if(existingNames.has(name)) return;
+          const seeded = seededGames(folder).find(g => g.name === name);
+          state[folder].games.push(seeded);
         });
         state[folder].seeded = true;
       }
+      migrateMeta(state[folder]);
+      if(state[folder].games) state[folder].games.forEach(migrateGame);
     });
   });
 
@@ -12658,7 +12829,7 @@ function saveState(){
 }
 
 function ensurePlatform(folder){
-  if(!state[folder]) state[folder] = { done:false, games: seededGames(folder), seeded: !!DEFAULT_GAMES[folder] };
+  if(!state[folder]) state[folder] = { done:false, games: seededGames(folder), seeded: !!DEFAULT_GAMES[folder], meta: defaultMeta() };
   return state[folder];
 }
 
@@ -12689,7 +12860,7 @@ function render(){
       if(statusFilter === "todo" && s.done) return false;
       if(!q) return true;
       if(name.toLowerCase().includes(q) || folder.toLowerCase().includes(q)) return true;
-      return s.games.some(g => g.name.toLowerCase().includes(q));
+      return s.games.some(g => g.name.toLowerCase().includes(q) || (g.alts||[]).some(a => a.name.toLowerCase().includes(q)) || (g.genre||"").toLowerCase().includes(q));
     });
 
     if(visiblePlats.length === 0) return;
@@ -12703,24 +12874,56 @@ function render(){
 
     visiblePlats.forEach(([name, folder])=>{
       const s = ensurePlatform(folder);
+      migrateMeta(s);
       const pDiv = document.createElement("div");
       pDiv.className = "platform" + (s.done ? " done" : "");
       pDiv.dataset.folder = folder;
 
       const gameDoneCount = s.games.filter(g=>g.done).length;
+      const worksLabel = s.meta.works === "oui" ? "✅ Fonctionne" : s.meta.works === "non" ? "❌ Ne fonctionne pas" : "";
 
       pDiv.innerHTML = `
         <div class="platform-header">
           <span class="chevron">▶</span>
           <input type="checkbox" class="platform-check" ${s.done ? "checked":""}>
           <span class="platform-name">${name}</span>
+          ${s.meta.year ? `<span class="platform-year">${s.meta.year}</span>` : ""}
+          ${worksLabel ? `<span class="platform-works ${s.meta.works}">${worksLabel}</span>` : ""}
           <span class="platform-folder">${folder}</span>
           <span class="platform-gamecount">${gameDoneCount}/${s.games.length} jeux</span>
         </div>
         <div class="platform-body">
+          <div class="platform-meta">
+            <div class="meta-row">
+              <label>Année<input type="text" class="meta-year" value="${s.meta.year}" placeholder="ex : 1985"></label>
+              <label>Fonctionne
+                <select class="meta-works">
+                  <option value="" ${s.meta.works===""?"selected":""}>Inconnu</option>
+                  <option value="oui" ${s.meta.works==="oui"?"selected":""}>Oui</option>
+                  <option value="non" ${s.meta.works==="non"?"selected":""}>Non</option>
+                </select>
+              </label>
+              <label>Fabricant<input type="text" class="meta-manufacturer" value="${s.meta.manufacturer}" placeholder="ex : Nintendo"></label>
+              <label>Support<input type="text" class="meta-support" value="${s.meta.support}" placeholder="ex : Cartouche"></label>
+              <label>État
+                <select class="meta-condition">
+                  <option value="" ${s.meta.condition===""?"selected":""}>—</option>
+                  <option value="neuf" ${s.meta.condition==="neuf"?"selected":""}>Neuf</option>
+                  <option value="bon" ${s.meta.condition==="bon"?"selected":""}>Bon état</option>
+                  <option value="use" ${s.meta.condition==="use"?"selected":""}>Usé</option>
+                  <option value="reparer" ${s.meta.condition==="reparer"?"selected":""}>À réparer</option>
+                </select>
+              </label>
+            </div>
+            <textarea class="meta-notes" placeholder="Notes libres...">${s.meta.notes}</textarea>
+          </div>
           <div class="game-add">
             <input type="text" placeholder="Ajouter un jeu..." class="game-input">
             <button class="primary add-game-btn">Ajouter</button>
+            <select class="sort-mode-select" title="Trier la liste">
+              <option value="name">Trier : Nom</option>
+              <option value="genre">Trier : Genre</option>
+            </select>
           </div>
           <div class="game-list"></div>
         </div>
@@ -12731,6 +12934,28 @@ function render(){
       const gameList = pDiv.querySelector(".game-list");
       const gameInput = pDiv.querySelector(".game-input");
       const addBtn = pDiv.querySelector(".add-game-btn");
+      const sortModeSelect = pDiv.querySelector(".sort-mode-select");
+      let sortMode = "name";
+      sortModeSelect.addEventListener("click", e => e.stopPropagation());
+      sortModeSelect.addEventListener("change", (e)=>{
+        sortMode = e.target.value;
+        renderGames();
+      });
+
+      // Métadonnées machine : chaque champ sauvegarde au changement.
+      pDiv.querySelector(".meta-year").addEventListener("input", (e)=>{ s.meta.year = e.target.value; saveState(); });
+      pDiv.querySelector(".meta-works").addEventListener("change", (e)=>{
+        s.meta.works = e.target.value;
+        saveState();
+        render();
+      });
+      pDiv.querySelector(".meta-manufacturer").addEventListener("input", (e)=>{ s.meta.manufacturer = e.target.value; saveState(); });
+      pDiv.querySelector(".meta-support").addEventListener("input", (e)=>{ s.meta.support = e.target.value; saveState(); });
+      pDiv.querySelector(".meta-condition").addEventListener("change", (e)=>{ s.meta.condition = e.target.value; saveState(); });
+      pDiv.querySelector(".meta-notes").addEventListener("input", (e)=>{ s.meta.notes = e.target.value; saveState(); });
+      pDiv.querySelectorAll(".platform-meta input, .platform-meta select, .platform-meta textarea").forEach(el=>{
+        el.addEventListener("click", e=> e.stopPropagation());
+      });
 
       header.addEventListener("click", (e)=>{
         if(e.target === checkbox) return;
@@ -12745,19 +12970,43 @@ function render(){
       });
 
       function renderGames(){
-        s.games.sort((a,b)=> a.name.localeCompare(b.name, 'fr', {sensitivity:'base', numeric:true}));
+        if(sortMode === "genre"){
+          s.games.sort((a,b)=>{
+            const ga = a.genre || "\uffff", gb = b.genre || "\uffff";
+            const gc = ga.localeCompare(gb, 'fr', {sensitivity:'base'});
+            if(gc !== 0) return gc;
+            return a.name.localeCompare(b.name, 'fr', {sensitivity:'base', numeric:true});
+          });
+        } else {
+          s.games.sort((a,b)=> a.name.localeCompare(b.name, 'fr', {sensitivity:'base', numeric:true}));
+        }
         gameList.innerHTML = "";
         if(s.games.length === 0){
           gameList.innerHTML = `<div class="empty-games">Aucun jeu ajouté pour l'instant.</div>`;
           return;
         }
         s.games.forEach((g, idx)=>{
+          if(!g.alts) g.alts = [];
+          if(typeof g.description !== "string") g.description = "";
+          if(typeof g.genre !== "string") g.genre = "";
           const gDiv = document.createElement("div");
           gDiv.className = "game-item" + (g.done ? " done" : "");
+          const altsHtml = g.alts.map((a, ai) => {
+            const flag = REGION_FLAGS[a.region] || "";
+            return `<span class="alt-tag" data-ai="${ai}">${flag ? flag+" " : ""}${a.name}<span class="alt-remove">✕</span></span>`;
+          }).join("");
           gDiv.innerHTML = `
-            <input type="checkbox" ${g.done ? "checked":""}>
-            <span class="game-name">${g.name}</span>
-            <button class="game-remove">✕</button>
+            <div class="game-item-row">
+              <input type="checkbox" ${g.done ? "checked":""}>
+              <span class="game-name">${g.name}</span>
+              ${g.genre ? `<span class="genre-tag">${g.genre}</span>` : ""}
+              <button class="alt-add-btn" title="Ajouter un nom alternatif (région)">+ nom</button>
+              <button class="genre-edit-btn" title="Genre">🏷</button>
+              <button class="desc-edit-btn" title="Description">✎</button>
+              <button class="game-remove">✕</button>
+            </div>
+            ${g.description ? `<div class="game-description">${g.description}</div>` : ""}
+            <div class="alt-tags">${altsHtml}</div>
           `;
           gDiv.querySelector("input").addEventListener("change", (e)=>{
             g.done = e.target.checked;
@@ -12771,6 +13020,44 @@ function render(){
             updateGameCountLabel();
             saveState();
           });
+          gDiv.querySelector(".alt-add-btn").addEventListener("click", (e)=>{
+            e.stopPropagation();
+            const altName = prompt(`Nom alternatif pour "${g.name}" (ex : titre EU, USA, JP...) :`);
+            if(altName && altName.trim()){
+              const regionInput = prompt(`Région de ce nom (tape EU, US, JP, World, ou laisse vide) :`, "");
+              const region = ["EU","US","JP","World"].includes((regionInput||"").trim()) ? regionInput.trim() : "";
+              g.alts.push({ name: altName.trim(), region });
+              renderGames();
+              saveState();
+            }
+          });
+          gDiv.querySelector(".genre-edit-btn").addEventListener("click", (e)=>{
+            e.stopPropagation();
+            const genreInput = prompt(`Genre pour "${g.name}" :`, g.genre || "");
+            if(genreInput !== null){
+              g.genre = genreInput.trim();
+              renderGames();
+              saveState();
+            }
+          });
+          gDiv.querySelector(".desc-edit-btn").addEventListener("click", (e)=>{
+            e.stopPropagation();
+            const descInput = prompt(`Description pour "${g.name}" :`, g.description || "");
+            if(descInput !== null){
+              g.description = descInput.trim();
+              renderGames();
+              saveState();
+            }
+          });
+          gDiv.querySelectorAll(".alt-remove").forEach(btn=>{
+            btn.addEventListener("click", (e)=>{
+              e.stopPropagation();
+              const ai = parseInt(btn.parentElement.dataset.ai, 10);
+              g.alts.splice(ai,1);
+              renderGames();
+              saveState();
+            });
+          });
           gameList.appendChild(gDiv);
         });
       }
@@ -12783,7 +13070,28 @@ function render(){
       function addGame(){
         const val = gameInput.value.trim();
         if(!val) return;
-        s.games.push({ name: val, done:false });
+        const normVal = normalizeGameName(val);
+        const existing = s.games.find(g =>
+          normalizeGameName(g.name) === normVal ||
+          (g.alts||[]).some(a => normalizeGameName(a.name) === normVal)
+        );
+        if(existing){
+          const confirmMerge = confirm(
+            `"${val}" ressemble déjà à "${existing.name}" dans la liste.\n\n` +
+            `Ajouter "${val}" comme nom alternatif (région) de ce jeu au lieu de créer un doublon ?`
+          );
+          if(confirmMerge){
+            if(!existing.alts) existing.alts = [];
+            if(!existing.alts.some(a => a.name === val)) existing.alts.push({ name: val, region: "" });
+            gameInput.value = "";
+            renderGames();
+            updateGameCountLabel();
+            saveState();
+            return;
+          }
+          // L'utilisateur veut vraiment un doublon distinct : on continue normalement.
+        }
+        s.games.push({ name: val, done:false, alts: [], description:"", genre:"" });
         gameInput.value = "";
         renderGames();
         updateGameCountLabel();
