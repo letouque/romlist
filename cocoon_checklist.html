@@ -356,27 +356,41 @@
     padding:2px 6px;
   }
   .game-remove:hover{color:var(--danger);}
-  .alt-tags{
+  .alt-rows{
     display:flex;
-    flex-wrap:wrap;
-    gap:5px;
-    padding-left:27px;
+    flex-direction:column;
+    margin-top:4px;
   }
-  .alt-tags:empty{display:none;}
-  .alt-tag{
-    display:inline-flex;
+  .alt-rows:empty{display:none;}
+  .alt-row{
+    display:flex;
     align-items:center;
-    gap:5px;
+    gap:8px;
     background:var(--panel);
-    border:1px solid var(--border);
+    border-left:3px solid var(--accent-dim);
+    padding:4px 8px 4px 10px;
+    margin-left:27px;
+    margin-bottom:2px;
+    border-radius:4px;
+    font-size:12px;
+  }
+  .alt-flag{
+    font-size:13px;
+    flex-shrink:0;
+  }
+  .alt-name{
+    flex:1;
+    color:var(--text);
+  }
+  .alt-date{
     color:var(--muted);
     font-size:11px;
-    padding:2px 6px;
-    border-radius:8px;
+    white-space:nowrap;
   }
   .alt-remove{
     cursor:pointer;
     color:var(--muted);
+    padding:0 2px;
   }
   .alt-remove:hover{color:var(--danger);}
   .empty-games{
@@ -587,8 +601,14 @@ const PLATFORM_DATA = [
 ];
 
 const NES_TITLES = [
-  "'89 Dennō Kyūsei Uranai",
-  "10-Yard Fight",
+  { name: "'89 Dennō Kyūsei Uranai", genre: "Simulation", alts: [
+    { name: "'89 Dennou Kyuusei Uranai", region: "JP", date: "10/12/1988" }
+  ] },
+  { name: "10-Yard Fight", genre: "Sport", alts: [
+    { name: "10-Yard Fight", region: "JP", date: "30/08/1985" },
+    { name: "10-Yard Fight", region: "US", date: "18/10/1985" },
+    { name: "10-Yard Fight", region: "EU", date: "06/12/1985" }
+  ] },
   "1942",
   "1943: The Battle of Midway",
   "1999: Hore Mita Koto Ka! Seikimatsu",
@@ -12746,7 +12766,7 @@ function seededGames(folder){
   if(!list) return [];
   return list.map(item => {
     if(typeof item === "string") return { name: item, done:false, alts: [], description:"", genre:"" };
-    const alts = (item.alts || []).map(a => typeof a === "string" ? { name:a, region:"" } : { name:a.name, region:a.region||"" });
+    const alts = (item.alts || []).map(a => typeof a === "string" ? { name:a, region:"", date:"" } : { name:a.name, region:a.region||"", date:a.date||"" });
     return { name: item.name, done:false, alts, description: item.description||"", genre: item.genre||"" };
   });
 }
@@ -12764,10 +12784,13 @@ function normalizeGameName(s){
 }
 
 function migrateGame(g){
-  // Ensures older saved entries (before alt-names/description/genre existed) get the fields.
+  // Ensures older saved entries (before alt-names/description/genre/date existed) get the fields.
   if(!g.alts) g.alts = [];
-  // Old format: alts was an array of plain strings. New format: {name, region}.
-  g.alts = g.alts.map(a => typeof a === "string" ? { name:a, region:"" } : a);
+  // Old format: alts was an array of plain strings, or {name,region}. New format adds date.
+  g.alts = g.alts.map(a => {
+    if(typeof a === "string") return { name:a, region:"", date:"" };
+    return { name:a.name, region:a.region||"", date:a.date||"" };
+  });
   if(typeof g.description !== "string") g.description = "";
   if(typeof g.genre !== "string") g.genre = "";
   return g;
@@ -12992,21 +13015,26 @@ function render(){
           const gDiv = document.createElement("div");
           gDiv.className = "game-item" + (g.done ? " done" : "");
           const altsHtml = g.alts.map((a, ai) => {
-            const flag = REGION_FLAGS[a.region] || "";
-            return `<span class="alt-tag" data-ai="${ai}">${flag ? flag+" " : ""}${a.name}<span class="alt-remove">✕</span></span>`;
+            const flag = REGION_FLAGS[a.region] || "🌐";
+            return `<div class="alt-row" data-ai="${ai}">
+              <span class="alt-flag">${flag}</span>
+              <span class="alt-name">${a.name}</span>
+              <span class="alt-date">${a.date || ""}</span>
+              <span class="alt-remove">✕</span>
+            </div>`;
           }).join("");
           gDiv.innerHTML = `
             <div class="game-item-row">
               <input type="checkbox" ${g.done ? "checked":""}>
               <span class="game-name">${g.name}</span>
               ${g.genre ? `<span class="genre-tag">${g.genre}</span>` : ""}
-              <button class="alt-add-btn" title="Ajouter un nom alternatif (région)">+ nom</button>
+              <button class="alt-add-btn" title="Ajouter une variante régionale">+ région</button>
               <button class="genre-edit-btn" title="Genre">🏷</button>
               <button class="desc-edit-btn" title="Description">✎</button>
               <button class="game-remove">✕</button>
             </div>
             ${g.description ? `<div class="game-description">${g.description}</div>` : ""}
-            <div class="alt-tags">${altsHtml}</div>
+            <div class="alt-rows">${altsHtml}</div>
           `;
           gDiv.querySelector("input").addEventListener("change", (e)=>{
             g.done = e.target.checked;
@@ -13022,11 +13050,12 @@ function render(){
           });
           gDiv.querySelector(".alt-add-btn").addEventListener("click", (e)=>{
             e.stopPropagation();
-            const altName = prompt(`Nom alternatif pour "${g.name}" (ex : titre EU, USA, JP...) :`);
+            const altName = prompt(`Nom de cette variante régionale pour "${g.name}" :`);
             if(altName && altName.trim()){
-              const regionInput = prompt(`Région de ce nom (tape EU, US, JP, World, ou laisse vide) :`, "");
+              const regionInput = prompt(`Région (tape EU, US, JP, World, ou laisse vide) :`, "");
               const region = ["EU","US","JP","World"].includes((regionInput||"").trim()) ? regionInput.trim() : "";
-              g.alts.push({ name: altName.trim(), region });
+              const dateInput = prompt(`Date de sortie pour cette région (ou laisse vide) :`, "");
+              g.alts.push({ name: altName.trim(), region, date: (dateInput||"").trim() });
               renderGames();
               saveState();
             }
@@ -13049,10 +13078,11 @@ function render(){
               saveState();
             }
           });
-          gDiv.querySelectorAll(".alt-remove").forEach(btn=>{
-            btn.addEventListener("click", (e)=>{
+          gDiv.querySelectorAll(".alt-row").forEach(row=>{
+            row.addEventListener("click", (e)=>{
               e.stopPropagation();
-              const ai = parseInt(btn.parentElement.dataset.ai, 10);
+              if(!e.target.classList.contains("alt-remove")) return;
+              const ai = parseInt(row.dataset.ai, 10);
               g.alts.splice(ai,1);
               renderGames();
               saveState();
