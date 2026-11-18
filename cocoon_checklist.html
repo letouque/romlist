@@ -11635,19 +11635,12 @@ function loadState(){
       if(!state[folder]){
         // Nouvelle plateforme jamais vue : on la crée et on pré-remplit si une
         // liste par défaut existe pour elle.
-        state[folder] = { done:false, games: seededGames(folder), seeded: !!DEFAULT_GAMES[folder] };
-      } else if(DEFAULT_GAMES[folder] && !state[folder].seeded){
-        // Plateforme déjà présente (créée vide avant l'ajout de sa liste par
-        // défaut) mais jamais pré-remplie : on ajoute les jeux par défaut
-        // manquants sans toucher à ceux déjà cochés/ajoutés par l'utilisateur.
-        const existingNames = new Set(state[folder].games.map(g => g.name));
-        DEFAULT_GAMES[folder].forEach(item => {
-          const name = typeof item === "string" ? item : item.name;
-          if(existingNames.has(name)) return;
-          const seeded = seededGames(folder).find(g => g.name === name);
-          state[folder].games.push(seeded);
-        });
-        state[folder].seeded = true;
+        state[folder] = { done:false, games: seededGames(folder), seeded: !!DEFAULT_GAMES[folder], removed: [] };
+      } else if(DEFAULT_GAMES[folder]){
+        // La liste du fichier (dépôt GitHub) fait foi : on la fusionne à chaque
+        // chargement avec les données de l'utilisateur (coches, version possédée,
+        // fonctionne, RetroAchievements, jeux ajoutés).
+        mergeDefaults(state[folder], folder);
       }
       migrateMeta(state[folder]);
       if(state[folder].games) state[folder].games.forEach(migrateGame);
@@ -11655,6 +11648,43 @@ function loadState(){
   });
 
   return state;
+}
+
+function userHasData(g){
+  return !!(g.done || g.works !== null && typeof g.works !== "undefined" || g.retroAch !== null && typeof g.retroAch !== "undefined" || (g.ownedVersion !== undefined && g.ownedVersion >= 0));
+}
+
+function mergeDefaults(st, folder){
+  const removed = new Set(st.removed || []);
+  const saved = new Map();
+  (st.games || []).forEach(g => { g = migrateGame(g); saved.set(normalizeGameName(g.name), g); });
+  const defaults = seededGames(folder);
+  const defNorms = new Set(defaults.map(d => normalizeGameName(d.name)));
+  const merged = [];
+  defaults.forEach(d => {
+    const key = normalizeGameName(d.name);
+    if(removed.has(key)) return;
+    const u = saved.get(key);
+    if(u){
+      d.done = !!u.done;
+      d.works = (typeof u.works === "undefined") ? null : u.works;
+      d.retroAch = (typeof u.retroAch === "undefined") ? null : u.retroAch;
+      if(!d.alts.length && u.alts && u.alts.length) d.alts = u.alts;
+      if(!d.genre && u.genre) d.genre = u.genre;
+      if(!d.description && u.description) d.description = u.description;
+      d.ownedVersion = (typeof u.ownedVersion === "number" && u.ownedVersion < d.alts.length) ? u.ownedVersion : -1;
+    }
+    merged.push(d);
+  });
+  // Jeux de l'utilisateur absents de la liste : conservés s'ils sont ajoutés à la
+  // main ou portent des données (coche, version, fonctionne, RA).
+  saved.forEach((u, key) => {
+    if(defNorms.has(key)) return;
+    if(u.custom || userHasData(u)) merged.push(u);
+  });
+  st.games = merged;
+  st.removed = Array.from(removed);
+  st.seeded = true;
 }
 
 let state = loadState();
@@ -11884,7 +11914,12 @@ function render(){
             });
           });
           gDiv.querySelector(".game-remove").addEventListener("click", ()=>{
-            s.games.splice(idx,1);
+            const removedGame = s.games.splice(idx,1)[0];
+            if(removedGame && !removedGame.custom){
+              if(!s.removed) s.removed = [];
+              const rk = normalizeGameName(removedGame.name);
+              if(!s.removed.includes(rk)) s.removed.push(rk);
+            }
             renderGames();
             updateGameCountLabel();
             saveState();
@@ -11953,7 +11988,8 @@ function render(){
           }
           // L'utilisateur veut vraiment un doublon distinct : on continue normalement.
         }
-        s.games.push({ name: val, done:false, alts: [], description:"", genre:"", ownedVersion:-1, works:null, retroAch:null });
+        if(s.removed) s.removed = s.removed.filter(k => k !== normVal);
+        s.games.push({ name: val, done:false, alts: [], description:"", genre:"", ownedVersion:-1, works:null, retroAch:null, custom:true });
         gameInput.value = "";
         renderGames();
         updateGameCountLabel();
